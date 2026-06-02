@@ -1,5 +1,3 @@
-<!-- mass-migrator release: v3.0.2 (2026-06-02) -->
-
 # Mass Migrator v3
 
 > **10 million master records moved, enriched, and selectively updated — in 27 minutes, with 4 CLI commands.**

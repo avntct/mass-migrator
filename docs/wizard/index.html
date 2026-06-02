@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mass Migrator v3 — Config Wizard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#1a365d;--primary-light:#2a4a7f;--accent:#319795;--accent-light:#4fd1c5;
+  --bg:#f7fafc;--card:#ffffff;--border:#e2e8f0;--text:#2d3748;--text-light:#718096;
+  --danger:#e53e3e;--warning:#dd6b20;--success:#38a169;
+  --radius:8px;--shadow:0 1px 3px rgba(0,0,0,.12);
+}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;font-size:15px}
+
+/* Nav */
+.nav{position:sticky;top:0;z-index:100;background:var(--primary);padding:0 24px;display:flex;align-items:center;gap:24px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.nav a{color:rgba(255,255,255,.7);text-decoration:none;padding:14px 8px;font-size:14px;font-weight:500;border-bottom:2px solid transparent;transition:.2s}
+.nav a:hover,.nav a.active{color:#fff;border-bottom-color:var(--accent)}
+.nav .badge{margin-left:auto;font-size:12px;padding:4px 12px;border-radius:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.nav .badge.red{background:#fed7d7;color:#c53030}
+.nav .badge.yellow{background:#fefcbf;color:#975a16}
+.nav .badge.green{background:#c6f6d5;color:#276749}
+
+/* Layout */
+.container{max-width:960px;margin:0 auto;padding:24px 16px 80px}
+.section{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:20px;border:1px solid var(--border)}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;cursor:pointer;user-select:none;border-bottom:1px solid var(--border)}
+.section-header h2{font-size:17px;font-weight:600;display:flex;align-items:center;gap:8px}
+.section-header .check{color:var(--success);font-size:18px;display:none}
+.section-header .check.visible{display:inline}
+.section-header .arrow{transition:transform .2s;color:var(--text-light);font-size:12px}
+.section-header .arrow.collapsed{transform:rotate(-90deg)}
+.section-body{padding:20px 24px}
+.section-body.hidden{display:none}
+
+/* Forms */
+.form-row{display:grid;grid-template-columns:160px 1fr;align-items:start;gap:8px 16px;margin-bottom:14px}
+@media(max-width:768px){.form-row{grid-template-columns:1fr}}
+.form-row label{font-size:14px;font-weight:500;padding-top:6px;color:var(--text)}
+.form-row input,.form-row select,.form-row textarea{font-family:inherit;font-size:14px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);width:100%;transition:border-color .2s}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(49,151,149,.15)}
+.form-row textarea{min-height:80px;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:13px;resize:vertical}
+.form-row input.invalid,.form-row select.invalid{border-color:var(--danger)}
+.hint{font-size:12px;color:var(--text-light);margin-top:2px;grid-column:2}
+@media(max-width:768px){.hint{grid-column:1}}
+
+/* Mode cards */
+.mode-group{margin-bottom:18px}
+.mode-group h3{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--text-light);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.mode-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.mode-option{position:relative}
+.mode-option input{position:absolute;opacity:0}
+.mode-option label{display:block;padding:10px 14px;border:2px solid var(--border);border-radius:6px;cursor:pointer;font-size:14px;font-weight:500;transition:.15s}
+.mode-option input:checked+label{border-color:var(--accent);background:rgba(49,151,149,.06)}
+.mode-option label:hover{border-color:var(--accent-light)}
+.mode-option .desc{font-size:12px;color:var(--text-light);font-weight:400;margin-top:2px}
+.mode-option input:checked+label .desc{color:var(--accent)}
+
+/* Pipeline steps */
+.step-card{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;background:#fafbfc}
+.step-card-header{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0}
+.step-card-header .drag-handle{cursor:grab;color:var(--text-light);font-size:16px;padding:2px 4px}
+.step-card-header .step-type{font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--primary);color:#fff}
+.step-card-header .step-id-input{font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;width:160px}
+.step-card-header .step-id-input:focus{outline:none;border-color:var(--accent)}
+.step-card-header .spacer{flex:1}
+.step-card-header .btn-icon{background:none;border:none;cursor:pointer;color:var(--text-light);font-size:16px;padding:4px 6px;border-radius:4px}
+.step-card-header .btn-icon:hover{background:var(--border);color:var(--danger)}
+.step-card-body{padding:14px 16px}
+.step-card-body.hidden{display:none}
+
+.add-step-bar{display:flex;align-items:center;gap:10px;margin-top:8px}
+.add-step-bar select{font-size:14px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:#fff;min-width:200px}
+.add-step-bar button{font-size:14px;padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:500}
+.add-step-bar button:hover{background:var(--accent-light)}
+
+/* Depends-on */
+.depends-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.depends-tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 8px;background:var(--primary-light);color:#fff;border-radius:4px}
+.depends-tag .remove{cursor:pointer;opacity:.7;font-size:14px}
+.depends-tag .remove:hover{opacity:1}
+
+/* YAML output */
+.yaml-output{position:relative;background:#1a202c;border-radius:var(--radius);overflow:hidden;margin-top:12px}
+.yaml-toolbar{display:flex;gap:8px;padding:8px 12px;background:rgba(0,0,0,.2)}
+.yaml-toolbar button{font-size:13px;padding:5px 12px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);border-radius:4px;cursor:pointer}
+.yaml-toolbar button:hover{background:rgba(255,255,255,.15);color:#fff}
+.yaml-pre{padding:16px;margin:0;overflow-x:auto;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:13px;line-height:1.6;color:#e2e8f0;counter-reset:line}
+.yaml-pre .line{display:block}
+.yaml-pre .line::before{counter-increment:line;content:counter(line);display:inline-block;width:32px;margin-right:16px;text-align:right;color:rgba(255,255,255,.2);font-size:12px}
+.yaml-kw{color:#90cdf4}
+.yaml-str{color:#9ae6b4}
+.yaml-cmt{color:#718096}
+.yaml-key{color:#fc8181}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--primary);color:#fff;padding:12px 20px;border-radius:var(--radius);font-size:14px;opacity:0;transform:translateY(10px);transition:.3s;z-index:200}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* Hidden */
+.hidden-section{display:none}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="#sec-mode" class="active">1. Mode</a>
+  <a href="#sec-source">2. Source</a>
+  <a href="#sec-sink">3. Sink</a>
+  <a href="#sec-pipeline" id="nav-pipeline">4. Pipeline</a>
+  <a href="#sec-concurrency">5. Concurrency</a>
+  <a href="#sec-state">6. State</a>
+  <a href="#sec-retry">7. Retry</a>
+  <a href="#sec-output">8. Generate</a>
+  <span class="badge red" id="validation-badge">Incomplete</span>
+</nav>
+
+<div class="container">
+
+<!-- Section 1: Mode -->
+<div class="section" id="sec-mode">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2>1. Operation Mode <span class="check" id="check-mode">&#10003;</span></h2>
+    <span class="arrow">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div class="mode-group">
+      <h3>Import (source DB → sink DB)</h3>
+      <div class="mode-grid">
+        <div class="mode-option"><input type="radio" name="mode" value="insert" id="m-insert"><label for="m-insert">Insert<span class="desc">Bulk insert rows</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="update" id="m-update"><label for="m-update">Update<span class="desc">Update existing rows</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="merge" id="m-merge"><label for="m-merge">Merge<span class="desc">Insert + update by key</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="upsert" id="m-upsert"><label for="m-upsert">Upsert<span class="desc">Insert or update</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="insert-ind" id="m-insert-ind"><label for="m-insert-ind">Insert-Ind<span class="desc">Incremental insert</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="update-ind" id="m-update-ind"><label for="m-update-ind">Update-Ind<span class="desc">Incremental update</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="merge-ind" id="m-merge-ind"><label for="m-merge-ind">Merge-Ind<span class="desc">Incremental merge</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="upsert-ind" id="m-upsert-ind"><label for="m-upsert-ind">Upsert-Ind<span class="desc">Incremental upsert</span></label></div>
+      </div>
+    </div>
+    <div class="mode-group">
+      <h3>Export (DB → file)</h3>
+      <div class="mode-grid">
+        <div class="mode-option"><input type="radio" name="mode" value="gencsv" id="m-gencsv"><label for="m-gencsv">Gen CSV<span class="desc">Export to CSV files</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="genparquet" id="m-genparquet"><label for="m-genparquet">Gen Parquet<span class="desc">Export to Parquet files</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="load2csv" id="m-load2csv"><label for="m-load2csv">Load to CSV<span class="desc">Direct DB→CSV transfer</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="load2parquet" id="m-load2parquet"><label for="m-load2parquet">Load to Parquet<span class="desc">Direct DB→Parquet transfer</span></label></div>
+      </div>
+    </div>
+    <div class="mode-group">
+      <h3>Special</h3>
+      <div class="mode-grid">
+        <div class="mode-option"><input type="radio" name="mode" value="pipeline" id="m-pipeline"><label for="m-pipeline">Pipeline<span class="desc">Multi-step DAG pipeline</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="daemon" id="m-daemon"><label for="m-daemon">Daemon<span class="desc">Scheduled recurring jobs</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="query" id="m-query"><label for="m-query">Query<span class="desc">Execute ad-hoc SQL query</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="kafka-push" id="m-kafka-push"><label for="m-kafka-push">Kafka Push<span class="desc">DB → Kafka topic</span></label></div>
+        <div class="mode-option"><input type="radio" name="mode" value="kafka-pull" id="m-kafka-pull"><label for="m-kafka-pull">Kafka Pull<span class="desc">Kafka topic → DB</span></label></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 2: Databases (pipeline) / Source (non-pipeline) -->
+<div class="section" id="sec-source">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span id="sec-source-title">2. Source</span> <span class="check" id="check-source">&#10003;</span></h2>
+    <span class="arrow">&#9660;</span>
+  </div>
+  <div class="section-body" id="source-body">
+    <!-- Non-pipeline mode: JDBC URL style -->
+    <div id="nonpipe-source">
+      <div class="form-row"><label for="src-dbtype">DB Type</label><select id="src-dbtype" onchange="updateState(); setJdbcPlaceholder('src-dbtype','src-jdbc')"><option value="">Select type...</option><option value="postgresql">PostgreSQL</option><option value="mysql">MySQL</option><option value="sqlite">SQLite</option><option value="sqlserver">SQL Server</option><option value="oracle">Oracle</option><option value="neo4j">Neo4j</option><option value="netezza">Netezza</option><option value="csv">CSV File</option><option value="parquet">Parquet File</option></select></div>
+      <div class="form-row"><label for="src-jdbc">JDBC URL</label><input id="src-jdbc" placeholder="" oninput="updateState()"><span class="hint">Auto-updated based on DB type selection</span></div>
+      <div class="form-row"><label for="src-query">Query</label><textarea id="src-query" placeholder="SELECT * FROM my_table WHERE active = true" oninput="updateState()"></textarea></div>
+      <div class="form-row"><label for="src-table">Table</label><input id="src-table" placeholder="my_table" oninput="updateState()"><span class="hint">Used instead of query for simple table reads</span></div>
+      <div class="form-row"><label for="src-fetch">Fetch Size</label><input id="src-fetch" type="number" placeholder="10000" oninput="updateState()"></div>
+    </div>
+    <!-- Group Processing (non-pipeline) -->
+    <div id="group-processing" style="display:none">
+      <div class="subsection">
+        <div class="subsection-header" onclick="toggleSubsection(this)">Group Processing <span class="arrow">&#9660;</span></div>
+        <div class="subsection-body">
+          <div class="form-row"><label for="gp-group-columns">Group Columns</label><input id="gp-group-columns" placeholder="region" oninput="updateSettings()"><span class="hint">Column(s) to group data by (comma-separated)</span></div>
+          <div class="form-row"><label for="gp-group-values">Group Values</label><input id="gp-group-values" placeholder="US,EU,APAC" oninput="updateSettings()"><span class="hint">Explicit values (comma-separated). Leave empty to auto-discover</span></div>
+          <div class="form-row"><label for="gp-group-query">Group Query</label><textarea id="gp-group-query" placeholder="SELECT DISTINCT region FROM my_table" oninput="updateSettings()"></textarea><span class="hint">SQL to fetch group values. Overrides group-values</span></div>
+          <div class="form-row"><label for="gp-group-query-db">Query DB</label><select id="gp-group-query-db" onchange="updateSettings()"><option value="source">Source</option><option value="target">Target</option></select><span class="hint">Which database to run the group query on</span></div>
+          <div class="form-row"><label for="gp-group-table">Group Table</label><input id="gp-group-table" placeholder="my_table" oninput="updateSettings()"><span class="hint">Table to auto-discover groups from</span></div>
+          <div class="form-row"><label for="gp-range-start">Range Start</label><input id="gp-range-start" type="number" placeholder="0" oninput="updateSettings()"></div>
+          <div class="form-row"><label for="gp-range-end">Range End</label><input id="gp-range-end" type="number" placeholder="100" oninput="updateSettings()"></div>
+          <div class="toggle-row"><label>Split Output By Group</label><label class="toggle-switch"><input type="checkbox" id="gp-split-output" onchange="updateSettings()"><span class="slider"></span></label></div>
+          <div class="toggle-row"><label>Enable Group Placeholders</label><label class="toggle-switch"><input type="checkbox" id="gp-enable-placeholders" onchange="updateSettings()"><span class="slider"></span></label></div>
+          <div class="form-row"><label for="gp-static-cols">Static Update Columns</label><input id="gp-static-cols" placeholder="status,processed_at" oninput="updateSettings()"><span class="hint">Columns to inject constant values</span></div>
+          <div class="form-row"><label for="gp-static-vals">Static Update Values</label><input id="gp-static-vals" placeholder="imported,NOW()" oninput="updateSettings()"><span class="hint">Values for static columns (matches columns order)</span></div>
+        </div>
+      </div>
+    </div>
+
+        <!-- Pipeline mode: named database connections -->
+    <div id="pipe-databases" style="display:none">
+      <p style="margin-bottom:12px;font-size:14px;color:var(--text-light)">Define named database connections. Pipeline steps reference them by name.</p>
+      <div id="db-connections"></div>
+      <div class="add-step-bar">
+        <input id="new-db-name" placeholder="Connection name (e.g. source_db)" style="font-size:14px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;flex:1">
+        <button onclick="addDatabase()">+ Add Database</button>
+      </div>
+    </div>
+    <!-- Kafka-pull source -->
+    <div id="kafka-source" style="display:none">
+      <div class="form-row"><label for="src-kafka-brokers">Brokers</label><input id="src-kafka-brokers" placeholder="localhost:9092" oninput="updateState()"></div>
+      <div class="form-row"><label for="src-kafka-topic">Topic</label><input id="src-kafka-topic" placeholder="my-topic" oninput="updateState()"></div>
+      <div class="form-row"><label for="src-kafka-group">Consumer Group</label><input id="src-kafka-group" placeholder="my-group" oninput="updateState()"></div>
+    </div>
+    <!-- Import-ind file source -->
+    <div id="file-source" style="display:none">
+      <div class="form-row"><label for="src-input-file">Input File</label><input id="src-input-file" placeholder="./data.csv" oninput="updateState()"><span class="hint">CSV or Parquet file path</span></div>
+      <div class="form-row"><label for="src-delimiter">Delimiter</label><input id="src-delimiter" value="," oninput="updateState()"></div>
+      <div class="form-row"><label for="src-has-header">Has Header</label><select id="src-has-header" onchange="updateState()"><option value="true">Yes</option><option value="false">No</option></select></div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 3: Target (non-pipeline) — hidden for pipeline mode since DBs are in section 2 -->
+<div class="section" id="sec-sink">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2>3. Target <span class="check" id="check-sink">&#10003;</span></h2>
+    <span class="arrow">&#9660;</span>
+  </div>
+  <div class="section-body" id="sink-body">
+    <div class="form-row"><label for="sink-dbtype">DB Type</label><select id="sink-dbtype" onchange="updateState(); setJdbcPlaceholder('sink-dbtype','sink-jdbc')"><option value="">Select type...</option><option value="postgresql">PostgreSQL</option><option value="mysql">MySQL</option><option value="sqlite">SQLite</option><option value="sqlserver">SQL Server</option><option value="oracle">Oracle</option><option value="neo4j">Neo4j</option><option value="netezza">Netezza</option><option value="csv">CSV File</option><option value="parquet">Parquet File</option></select></div>
+    <div class="form-row" id="sink-jdbc-row"><label for="sink-jdbc">JDBC URL</label><input id="sink-jdbc" placeholder="" oninput="updateState()"></div>
+    <div class="form-row"><label for="sink-table">Table</label><input id="sink-table" placeholder="my_table" oninput="updateState()"></div>
+    <div class="form-row" id="sink-strategy-row"><label for="sink-strategy">Write Strategy</label><select id="sink-strategy" onchange="updateState()"><option value="insert">Insert</option><option value="update">Update</option><option value="merge">Merge</option><option value="upsert">Upsert</option></select></div>
+    <div class="form-row" id="sink-key-row"><label for="sink-key">Key Columns</label><input id="sink-key" placeholder="id" oninput="updateState()"><span class="hint">For merge/upsert — excluded from UPDATE SET</span></div>
+    <div class="form-row"><label for="sink-batch">Batch Size</label><input id="sink-batch" type="number" placeholder="5000" oninput="updateState()"></div>
+    <div class="form-row"><label for="sink-threads">Threads</label><input id="sink-threads" type="number" placeholder="4" oninput="updateState()"></div>
+    <!-- File export options -->
+    <div id="sink-file-opts" style="display:none">
+      <div class="form-row"><label for="sink-output-file">Output File</label><input id="sink-output-file" placeholder="./output.csv" oninput="updateState()"></div>
+      <div class="form-row"><label for="sink-delimiter">Delimiter</label><input id="sink-delimiter" value="," oninput="updateState()"></div>
+      <div class="form-row"><label for="sink-header">Header Row</label><select id="sink-header" onchange="updateState()"><option value="true">Yes</option><option value="false">No</option></select></div>
+    </div>
+    <!-- Kafka push options -->
+    <div id="sink-kafka-opts" style="display:none">
+      <div class="form-row"><label for="sink-kafka-topic">Topic</label><input id="sink-kafka-topic" placeholder="my-topic" oninput="updateState()"></div>
+      <div class="form-row"><label for="sink-kafka-brokers">Brokers</label><input id="sink-kafka-brokers" placeholder="localhost:9092" oninput="updateState()"></div>
+      <div class="form-row"><label for="sink-kafka-key">Partition Key</label><input id="sink-kafka-key" placeholder="id" oninput="updateState()"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 4: Pipeline -->
+<div class="section hidden-section" id="sec-pipeline">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2>4. Pipeline Steps <span class="check" id="check-pipeline">&#10003;</span></h2>
+    <span class="arrow">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div id="steps-container"></div>
+    <div class="add-step-bar">
+      <select id="new-step-type"></select>
+      <button onclick="addStep()">+ Add Step</button>
+    </div>
+    <p style="margin-top:8px;font-size:13px;color:var(--text-light)">Drag steps to reorder. Use <b>depends_on</b> to define execution DAG.</p>
+  </div>
+</div>
+
+<!-- Section 5: Concurrency & Partitioning -->
+<div class="section" id="sec-concurrency">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2>5. Concurrency &amp; Partitioning <span class="check" id="check-concurrency">&#10003;</span></h2>
+    <span class="arrow">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div class="pipe-only">
+      <div class="subsection">
+        <div class="subsection-header" onclick="toggleSubsection(this)">Partitioning <span class="arrow">&#9660;</span></div>
+        <div class="subsection-body">
+          <div class="form-row"><label for="s-partition-by">Partition By</label><input id="s-partition-by" placeholder="region" oninput="updateSettings()"><span class="hint">Column to partition data by for parallel execution</span></div>
+          <div class="form-row"><label for="s-partition-by-cols">Partition Columns</label><input id="s-partition-by-cols" placeholder="region, country" oninput="updateSettings()"><span class="hint">Composite partition key (comma-separated)</span></div>
+          <div class="form-row"><label for="s-partition-src-table">Source Table</label><input id="s-partition-src-table" placeholder="my_table" oninput="updateSettings()"><span class="hint">Table to enumerate distinct partition key values from</span></div>
+          <div class="form-row"><label for="s-partition-src-col">Source Column</label><input id="s-partition-src-col" placeholder="region" oninput="updateSettings()"><span class="hint">Column in source table (defaults to partition_by)</span></div>
+          <div class="form-row"><label for="s-max-parallel-parts">Max Parallel Partitions</label><input id="s-max-parallel-parts" type="number" placeholder="4" oninput="updateSettings()"><span class="hint">Per-stage worker count (default: 4)</span></div>
+          <div class="form-row"><label for="s-reshuffle-strategy">Reshuffle Strategy</label><select id="s-reshuffle-strategy" onchange="updateSettings()"><option value="barrier">Barrier (default)</option><option value="requery">Requery</option><option value="stream">Stream</option></select></div>
+        </div>
+      </div>
+      <div class="subsection">
+        <div class="subsection-header" onclick="toggleSubsection(this)">Concurrency <span class="arrow">&#9660;</span></div>
+        <div class="subsection-body">
+          <div class="form-row"><label for="s-default-threads">Default Threads</label><input id="s-default-threads" type="number" placeholder="4" oninput="updateSettings()"><span class="hint">In-step worker threads (default: 4)</span></div>
+          <div class="form-row"><label for="s-max-parallel-steps">Max Parallel Steps</label><input id="s-max-parallel-steps" type="number" placeholder="" oninput="updateSettings()"><span class="hint">DAG-level concurrency cap</span></div>
+          <div class="form-row"><label for="s-max-parallel">Max Parallel</label><input id="s-max-parallel" type="number" placeholder="" oninput="updateSettings()"><span class="hint">Global parallelism limit</span></div>
+          <div class="form-row"><label for="s-memory-threshold">Memory Threshold (MB)</label><input id="s-memory-threshold" type="number" placeholder="512" oninput="updateSettings()"><span class="hint">Memory limit before spilling to disk</span></div>
+          <div class="form-row"><label for="s-step-timeout">Step Timeout</label><input id="s-step-timeout" placeholder="5m" oninput="updateSettings()"><span class="hint">Per-step timeout (Go duration). 0 = no timeout</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="nonpipe-only">
+      <div class="subsection">
+        <div class="subsection-header" onclick="toggleSubsection(this)">Performance <span class="arrow">&#9660;</span></div>
+        <div class="subsection-body">
+          <div class="form-row"><label for="s-np-batch-size">Batch Size</label><input id="s-np-batch-size" type="number" placeholder="50000" oninput="updateSettings()"></div>
+          <div class="form-row"><label for="s-np-threads">Threads</label><input id="s-np-threads" type="number" placeholder="4" oninput="updateSettings()"></div>
+          <div class="form-row"><label for="s-np-queue-size">Queue Size</label><input id="s-np-queue-size" type="number" placeholder="" oninput="updateSettings()"></div>
+          <div class="form-row"><label for="s-np-fetch-size">Fetch Size</label><input id="s-np-fetch-size" type="number" placeholder="10000" oninput="updateSettings()"></div>
+          <div class="form-row"><label for="s-np-partition-key-cols">Partition Key Columns</label><input id="s-np-partition-key-cols" placeholder="region, country" oninput="updateSettings()"></div>
+          <div class="form-row"><label for="s-np-num-partitions">Num Partitions</label><input id="s-np-num-partitions" type="number" placeholder="4" oninput="updateSettings()"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+<!-- Section 6: State & Recovery -->
+<div class="section" id="sec-state">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2>6. State &amp; Recovery <span class="check" id="check-state">&#10003;</span></h2>
+    <span class="arrow">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div class="subsection">
+      <div class="subsection-header" onclick="toggleSubsection(this)">State Tracking <span class="arrow">&#9660;</span></div>
+      <div class="subsection-body">
+        <div class="toggle-row"><label>Enable State Management</label><label class="toggle-switch"><input type="checkbox" id="s-state-enabled" onchange="updateSettings()"><span class="slider"></span></label></div>
+        <div class="form-row"><label for="s-state-db-path">State DB Path</label><input id="s-state-db-path" placeholder="./state/state.db" oninput="updateSettings()"><span class="hint">SQLite or connection string for state backend</span></div>
+        <div class="form-row"><label for="s-state-log-path">State Log Path</label><input id="s-state-log-path" placeholder="./state/state.jsonl" oninput="updateSettings()"><span class="hint">JSONL event log for state transitions</span></div>
+        <div class="form-row pipe-only"><label for="s-state-db-type">State DB Type</label><select id="s-state-db-type" onchange="updateSettings()"><option value="sqlite">SQLite (default)</option><option value="postgresql">PostgreSQL</option><option value="mysql">MySQL</option><option value="sqlserver">SQL Server</option><option value="oracle">Oracle</option></select></div>
+        <div class="form-row pipe-only"><label for="s-state-flush-interval">Flush Interval</label><input id="s-state-flush-interval" placeholder="5s" oninput="updateSettings()"><span class="hint">How often to flush state to disk (Go duration)</span></div>
+      </div>
+    </div>
+    <div class="subsection pipe-only">
+      <div class="subsection-header" onclick="toggleSubsection(this)">Resume &amp; Execution <span class="arrow">&#9660;</span></div>
+      <div class="subsection-body">
+        <div class="form-row"><label for="s-resume-run-id">Resume Run ID</label><input id="s-resume-run-id" placeholder="" oninput="updateSettings()"><span class="hint">Leave empty for new run, or paste a run ID to resume</span></div>
+        <div class="form-row"><label for="s-execution-mode">Execution Mode</label><select id="s-execution-mode" onchange="updateSettings(); toggleConditional('streaming-opts', this.value !== 'batch')"><option value="batch">Batch (default)</option><option value="streaming">Streaming</option><option value="auto">Auto-detect</option></select></div>
+        <div class="conditional hidden" id="streaming-opts">
+          <div class="form-row"><label for="s-checkpoint-interval">Checkpoint Interval</label><input id="s-checkpoint-interval" placeholder="60s" oninput="updateSettings()"><span class="hint">Time between batch iterations in streaming mode</span></div>
+          <div class="form-row"><label for="s-idle-timeout">Idle Timeout</label><input id="s-idle-timeout" placeholder="5m" oninput="updateSettings()"><span class="hint">How long to wait with no progress before stopping</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="subsection">
+      <div class="subsection-header" onclick="toggleSubsection(this)">Dead Letter Queue <span class="arrow">&#9660;</span></div>
+      <div class="subsection-body">
+        <div class="form-row"><label for="s-dlq-path">DLQ Path</label><input id="s-dlq-path" placeholder="./state/dlq.csv" oninput="updateSettings()"><span class="hint">Path for failed records CSV (empty = disabled)</span></div>
+        <div class="toggle-row pipe-only"><label>Auto-Reprocess</label><label class="toggle-switch"><input type="checkbox" id="s-dlq-auto-reprocess" onchange="updateSettings()"><span class="slider"></span></label></div>
+        <div class="form-row pipe-only"><label for="s-dlq-retry-cooldown">Retry Cooldown</label><input id="s-dlq-retry-cooldown" placeholder="5m" oninput="updateSettings()"><span class="hint">Minimum time between DLQ reprocessing attempts</span></div>
+      </div>
+    </div>
+    <div class="subsection pipe-only">
+      <div class="subsection-header" onclick="toggleSubsection(this)">Recovery <span class="arrow">&#9660;</span></div>
+      <div class="subsection-body">
+        <div class="toggle-row"><label>Enable Recovery Sweeper</label><label class="toggle-switch"><input type="checkbox" id="s-recovery-enabled" onchange="updateSettings()"><span class="slider"></span></label></div>
+        <div class="form-row"><label for="s-recovery-timeout">Recovery Timeout</label><input id="s-recovery-timeout" placeholder="5m" oninput="updateSettings()"><span class="hint">How long before Processing records are considered stuck</span></div>
+        <div class="form-row"><label for="s-recovery-sweep-interval">Sweep Interval</label><input id="s-recovery-sweep-interval" placeholder="1m" oninput="updateSettings()"><span class="hint">How often the recovery sweeper checks for stuck records</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 7: Retry & Error Handling -->
+<div class="section" id="sec-retry">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2>7. Retry &amp; Error Handling <span class="check" id="check-retry">&#10003;</span></h2>
+    <span class="arrow">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div class="subsection">
+      <div class="subsection-header" onclick="toggleSubsection(this)">Retry <span class="arrow">&#9660;</span></div>
+      <div class="subsection-body">
+        <div class="form-row"><label for="s-retry-strategy">Retry Strategy</label><select id="s-retry-strategy" onchange="updateSettings(); toggleConditional('circuit-breaker-opts', this.value === 'circuit-break')"><option value="">None (default)</option><option value="auto">Auto</option><option value="adaptive">Adaptive</option><option value="circuit-break">Circuit Breaker</option><option value="manual">Manual</option></select></div>
+        <div class="form-row"><label for="s-retry-backoff">Backoff Strategy</label><select id="s-retry-backoff" onchange="updateSettings()"><option value="">Default</option><option value="exponential">Exponential</option><option value="linear">Linear</option><option value="immediate">Immediate</option><option value="jittered">Jittered</option></select></div>
+        <div class="form-row"><label for="s-retry-max-attempts">Max Attempts</label><input id="s-retry-max-attempts" type="number" placeholder="3" oninput="updateSettings()"></div>
+        <div class="form-row"><label for="s-retry-initial-wait">Initial Wait</label><input id="s-retry-initial-wait" placeholder="100ms" oninput="updateSettings()"><span class="hint">Go duration (100ms, 1s, etc.)</span></div>
+        <div class="form-row"><label for="s-retry-max-wait">Max Wait</label><input id="s-retry-max-wait" placeholder="10s" oninput="updateSettings()"><span class="hint">Go duration (10s, 30s, etc.)</span></div>
+        <div class="form-row"><label>Retry On</label><div class="chip-group" id="retry-on-chips">
+          <span class="chip" data-value="deadlock" onclick="toggleChip(this,'retry_on')">deadlock</span>
+          <span class="chip" data-value="timeout" onclick="toggleChip(this,'retry_on')">timeout</span>
+          <span class="chip" data-value="connection" onclick="toggleChip(this,'retry_on')">connection</span>
+        </div><span class="hint">Click to select error types that trigger retry</span></div>
+      </div>
+    </div>
+    <div class="subsection pipe-only conditional hidden" id="circuit-breaker-opts">
+      <div class="subsection-header" onclick="toggleSubsection(this)">Circuit Breaker <span class="arrow">&#9660;</span></div>
+      <div class="subsection-body">
+        <div class="form-row"><label for="s-circuit-break-threshold">Threshold</label><input id="s-circuit-break-threshold" type="number" placeholder="5" oninput="updateSettings()"><span class="hint">Failures before opening the circuit</span></div>
+        <div class="form-row"><label for="s-circuit-break-timeout">Timeout</label><input id="s-circuit-break-timeout" placeholder="60s" oninput="updateSettings()"><span class="hint">How long to keep the circuit open (Go duration)</span></div>
+      </div>
+    </div>
+    <div class="subsection pipe-only">
+      <div class="subsection-header" onclick="toggleSubsection(this)">Error Handling <span class="arrow">&#9660;</span></div>
+      <div class="subsection-body">
+        <div class="toggle-row"><label>Continue On Error</label><label class="toggle-switch"><input type="checkbox" id="s-continue-on-error" onchange="updateSettings()"><span class="slider"></span></label></div>
+        <div class="form-row"><label for="s-error-handler-timeout">Handler Timeout</label><input id="s-error-handler-timeout" placeholder="15s" oninput="updateSettings()"><span class="hint">Max time per on_error chain (Go duration)</span></div>
+        <div class="form-row"><label for="s-finalizer-timeout">Finalizer Timeout</label><input id="s-finalizer-timeout" placeholder="30s" oninput="updateSettings()"><span class="hint">Max time for finalizer phase (Go duration)</span></div>
+        <div class="form-row"><label for="s-transaction-mode">Transaction Mode</label><select id="s-transaction-mode" onchange="updateSettings()"><option value="">Default (saga)</option><option value="none">None</option><option value="saga">Saga</option><option value="2pc">2-Phase Commit</option></select></div>
+      </div>
+    </div>
+    <div class="subsection nonpipe-only">
+      <div class="subsection-header" onclick="toggleSubsection(this)">Error Handling <span class="arrow">&#9660;</span></div>
+      <div class="subsection-body">
+        <div class="form-row"><label for="s-np-max-retry-attempts">Max Retry Attempts</label><input id="s-np-max-retry-attempts" type="number" placeholder="3" oninput="updateSettings()"></div>
+        <div class="form-row"><label for="s-np-max-allowed-errors">Max Allowed Errors</label><input id="s-np-max-allowed-errors" type="number" placeholder="100" oninput="updateSettings()"></div>
+        <div class="toggle-row"><label>Fail Fast Mode</label><label class="toggle-switch"><input type="checkbox" id="s-np-fail-fast" onchange="updateSettings()"><span class="slider"></span></label></div>
+      </div>
+    </div>
+    <div class="subsection">
+      <div class="subsection-header" onclick="toggleSubsection(this)">Progress &amp; Logging <span class="arrow">&#9660;</span></div>
+      <div class="subsection-body">
+        <div class="form-row"><label for="s-progress-log">Progress Log</label><input id="s-progress-log" placeholder="./progress.jsonl" oninput="updateSettings()"><span class="hint">JSONL progress log path (empty = stderr only)</span></div>
+        <div class="toggle-row nonpipe-only"><label>Enable TPS Metrics</label><label class="toggle-switch"><input type="checkbox" id="s-enable-tps" onchange="updateSettings()"><span class="slider"></span></label></div>
+        <div class="toggle-row nonpipe-only"><label>Dry Run</label><label class="toggle-switch"><input type="checkbox" id="s-dry-run" onchange="updateSettings()"><span class="slider"></span></label></div>
+        <div class="toggle-row nonpipe-only"><label>Verbose</label><label class="toggle-switch"><input type="checkbox" id="s-verbose" onchange="updateSettings()"><span class="slider"></span></label></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 8: Output -->
+<div class="section" id="sec-output">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2>8. Generated Config</h2>
+    <span class="arrow">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div class="yaml-output">
+      <div class="yaml-toolbar">
+        <button onclick="downloadYAML()">Download YAML</button>
+        <button onclick="copyYAML()">Copy to Clipboard</button>
+        <button onclick="downloadJSON()">Download JSON</button>
+      </div>
+      <pre class="yaml-pre" id="yaml-preview"></pre>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+const state = {
+  mode: null,
+  source: { dbType:null, jdbcUrl:null, query:null, table:null, fetchSize:null },
+  kafkaSource: { brokers:'localhost:9092', topic:'', consumerGroup:'' },
+  fileSource: { inputFile:'', delimiter:',', hasHeader:true },
+  sink:   { dbType:null, jdbcUrl:null, table:null, strategy:'insert', keyColumns:null, batchSize:null, threads:null, outputFile:null, delimiter:',', header:true, kafkaTopic:null, kafkaBrokers:null, kafkaKey:null },
+  databases: [],
+  pipeline: { steps: [] },
+  settings: {
+    partition_by:'', partition_by_columns:'', partition_source_table:'', partition_source_column:'',
+    max_parallel_partitions:'', reshuffle_strategy:'barrier',
+    default_threads:'', max_parallel_steps:'', max_parallel:'', memory_threshold_mb:'', step_timeout:'',
+    batch_size:'', threads_np:'', queue_size:'', fetch_size:'', partition_key_columns:'', num_partitions:'',
+    state_enabled:false, state_db_path:'', state_log_path:'', state_db_type:'sqlite', state_flush_interval:'',
+    resume_run_id:'', execution_mode:'batch', checkpoint_interval:'', idle_timeout:'',
+    dlq_path:'', dlq_auto_reprocess:false, dlq_retry_cooldown:'',
+    recovery_enabled:false, recovery_timeout:'', recovery_sweep_interval:'',
+    retry_strategy:'', retry_backoff:'', retry_max_attempts:'', retry_initial_wait:'', retry_max_wait:'',
+    retry_on:[],
+    circuit_break_threshold:'', circuit_break_timeout:'',
+    continue_on_error:false, error_handler_timeout:'', finalizer_timeout:'', transaction_mode:'',
+    max_retry_attempts:'', max_allowed_errors:'', fail_fast_mode:false,
+    // Group Processing
+    group_columns:'', group_values:'', group_query:'', group_query_db:'source', group_table:'',
+    group_range_start:'', group_range_end:'', split_output_by_group:false, enable_group_placeholders:false,
+    static_update_columns:'', static_update_values:'',
+    progress_log:'', enable_tps_metrics:false, dry_run:false, verbose:false
+  }
+};
+
+const STEP_TYPES = {
+  sql:{label:'SQL',fields:['database:text','sql:textarea']},
+  query:{label:'Query',fields:['database:text','sql:textarea','output:text','threads:number']},
+  load:{label:'Load',fields:['database:text','dataset:text','target_table:text','strategy:select(insert,update,merge,upsert)','key_columns:text','columns:text','batch_size:number','threads:number']},
+  transform:{label:'Transform',fields:['input:text','output:text','script:textarea','mode:select(one_to_one,one_to_many,many_to_one,many_to_many)','threads:number']},
+  filter:{label:'Filter',fields:['input:text','output:text','expression:text']},
+  project:{label:'Project',fields:['input:text','output:text','columns:text','rename:text']},
+  aggregate:{label:'Aggregate',fields:['input:text','output:text','group_by:text','aggregations:textarea','threads:number']},
+  sort:{label:'Sort',fields:['input:text','output:text','order_by:text','limit:number']},
+  dedup:{label:'Deduplicate',fields:['input:text','output:text','key_columns:text','keep:select(FIRST,LAST)','order_by:text','order_dir:select(ASC,DESC)']},
+  split:{label:'Split',fields:['input:text','split_column:text','output_prefix:text','condition:text']},
+  validate:{label:'Validate',fields:['input:text','rules:textarea','fail_on:text','on_fail:select(error,filter)','output:text']},
+  window:{label:'Window',fields:['dataset:text','function:text','partition_by:text','order_by:text','output:text','offset:number']},
+  check:{label:'Check',fields:['database:text','sql:textarea','condition:text','message:text']},
+  vars:{label:'Variables',fields:['variables:textarea','database:text','sql:textarea']},
+  setop:{label:'Set Operation',fields:['operation:select(JOIN,LEFT_JOIN,OUTER_JOIN,LOOKUP,IN,NOT_IN,EXISTS,NOT_EXISTS,MINUS,UNION,UNION_ALL,INTERSECT)','inputs:text','output:text','join_keys:text','join_strategy:select(auto,broadcast_hash,sort_merge)']},
+  sample:{label:'Sample',fields:['dataset:text','output:text','rate:text','size:number','seed:number']},
+  pivot:{label:'Pivot',fields:['dataset:text','output:text','group_by:text','pivot_column:text','value_column:text','aggregate:text']},
+  write:{label:'Write File',fields:['source:text','path:text','format:select(csv,parquet)','split_by:text','threads:number']},
+  read:{label:'Read File',fields:['path:text','format:select(csv,parquet,json)','output:text','threads:number']},
+  kafka_push:{label:'Kafka Push',fields:['dataset:text','brokers:text','topic:text','key_column:text','threads:number','batch_size:number']},
+  kafka_pull:{label:'Kafka Pull',fields:['output:text','brokers:text','topic:text','consumer_group:text','max_records:number','threads:number']},
+  distributed_join:{label:'Distributed Join',fields:['left_database:text','left_sql:textarea','right_database:text','right_sql:textarea','join_key:text','output:text','threads:number']},
+  relationships:{label:'Relationships',fields:['relationships:textarea']},
+  multi_join:{label:'Multi Join',fields:['sources:textarea','output:text','output_columns:textarea','strategy:select(auto,broadcast_hash,sort_merge,partitioned_hash)','threads:number']},
+  poller:{label:'Poller',fields:['datasource:text','header_table:text','primary_key:text','status_column:text','claim_workers:number','process_workers:number']},
+  multi_table_poller:{label:'Multi-Table Poller',fields:['datasource:text','header_table:text','primary_key:text','detail_tables:textarea','claim_batch_size:number','process_workers:number']},
+  read_from_dataset:{label:'Read from Dataset',fields:['source_dataset:text','path_column:text','format:select(csv,parquet,json)','output:text','threads:number']},
+  load_from_files:{label:'Load from Files',fields:['source_dataset:text','path_column:text','file_format:select(csv,parquet,json)','database:text','target_table:text','strategy:select(insert,update,merge,upsert)','key_columns:text','batch_size:number','threads:number']},
+  rel_migrate:{label:'Rel Migrate',fields:['source_db:text','target_db:text','header:textarea','children:textarea','workers:number']},
+  rel_scan:{label:'Rel Scan',fields:['source_db:text','header:textarea','output:text']},
+  rel_fetch:{label:'Rel Fetch',fields:['source_db:text','input:text','header:textarea','children:textarea','outputs:textarea']},
+  rel_write:{label:'Rel Write',fields:['target_db:text','header:textarea','children:textarea','inputs:textarea']}
+};
+
+const LIST_FIELDS = new Set(['columns','key_columns','group_by','order_by','join_keys','inputs','primary_key','partition_by']);
+const JDBC_URL_FORMATS = {
+  postgresql: 'postgresql://user:pass@host:5432/dbname',
+  mysql:      'mysql://user:pass@host:3306/dbname',
+  sqlite:     'file:./data.db',
+  sqlserver:  'sqlserver://host:1433;databaseName=dbname',
+  oracle:     'oracle://user:pass@host:1521/service',
+  neo4j:      'neo4j://host:7687',
+  netezza:    'netezza://host:5480/dbname'
+};
+function setJdbcPlaceholder(dbTypeSelectId, jdbcInputId) {
+  const sel = document.getElementById(dbTypeSelectId);
+  const inp = document.getElementById(jdbcInputId);
+  if (!sel || !inp) return;
+  const fmt = JDBC_URL_FORMATS[sel.value];
+  if (fmt) inp.placeholder = fmt;
+}
+const stepCounters = {};
+
+(function init() {
+  const sel = document.getElementById('new-step-type');
+  for (const [key, def] of Object.entries(STEP_TYPES)) {
+    const opt = document.createElement('option');
+    opt.value = key; opt.textContent = def.label;
+    sel.appendChild(opt);
+  }
+  document.querySelectorAll('input[name="mode"]').forEach(r => {
+    r.addEventListener('change', () => { state.mode = r.value; onModeChange(); });
+  });
+  document.querySelectorAll('.section-header').forEach(h => {
+    const id = h.closest('.section').id;
+    const collapsed = localStorage.getItem('collapsed_' + id);
+    if (collapsed === 'true') {
+      h.querySelector('.arrow').classList.add('collapsed');
+      h.nextElementSibling.classList.add('hidden');
+    }
+  });
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
+        const link = document.querySelector(`.nav a[href="#${e.target.id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { threshold: 0.3 });
+  document.querySelectorAll('.section').forEach(s => observer.observe(s));
+  document.querySelectorAll('.pipe-only, .nonpipe-only').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.subsection-header').forEach(h => {
+    const key = 'collapsed_sub_' + h.textContent.trim().replace(/\s+/g, '_');
+    if (localStorage.getItem(key) === 'true') {
+      h.querySelector('.arrow').classList.add('collapsed');
+      h.nextElementSibling.classList.add('hidden');
+    }
+  });
+  // Set initial JDBC placeholders based on default selections
+  setJdbcPlaceholder('src-dbtype','src-jdbc');
+  setJdbcPlaceholder('sink-dbtype','sink-jdbc');
+  updateState();
+})();
+
+function gv(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function toggleSubsection(header) {
+  const arrow = header.querySelector('.arrow');
+  const body = header.nextElementSibling;
+  arrow.classList.toggle('collapsed');
+  body.classList.toggle('hidden');
+  const key = 'collapsed_sub_' + header.textContent.trim().replace(/\s+/g, '_');
+  localStorage.setItem(key, body.classList.contains('hidden'));
+}
+
+function toggleChip(chip, field) {
+  chip.classList.toggle('active');
+  const arr = state.settings[field] || [];
+  const val = chip.dataset.value;
+  const idx = arr.indexOf(val);
+  if (idx >= 0) arr.splice(idx, 1); else arr.push(val);
+  state.settings[field] = arr;
+  updateSettings();
+}
+
+function toggleConditional(id, show) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('hidden', !show);
+}
+
+function onModeChange() {
+  const m = state.mode;
+  const isPipeline = m === 'pipeline' || m === 'daemon';
+  const isExport = ['gencsv','genparquet','load2csv','load2parquet'].includes(m);
+  const isKafkaPush = m === 'kafka-push';
+  const isQuery = m === 'query';
+  const isKafkaPull = m === 'kafka-pull';
+  const isImportInd = ['insert-ind','update-ind','merge-ind','upsert-ind'].includes(m);
+  const needsSource = ['insert','update','merge','upsert','load2csv','load2parquet','kafka-push'].includes(m);
+  const title = document.getElementById('sec-source-title');
+  const nonpipe = document.getElementById('nonpipe-source');
+  const pipeDB = document.getElementById('pipe-databases');
+  const kafkaSrc = document.getElementById('kafka-source');
+  const fileSrc = document.getElementById('file-source');
+  if (isPipeline) {
+    title.innerHTML = '2. Databases <span class="check" id="check-source">&#10003;</span>';
+    nonpipe.style.display = 'none'; pipeDB.style.display = '';
+    kafkaSrc.style.display = 'none'; fileSrc.style.display = 'none';
+  } else {
+    title.innerHTML = (isKafkaPull ? '2. Kafka Source' : isImportInd ? '2. File Source' : '2. Source') + ' <span class="check" id="check-source">&#10003;</span>';
+    nonpipe.style.display = (isKafkaPull || isImportInd) ? 'none' : '';
+    pipeDB.style.display = 'none';
+    kafkaSrc.style.display = isKafkaPull ? '' : 'none';
+    fileSrc.style.display = isImportInd ? '' : 'none';
+    const groupProc = document.getElementById('group-processing');
+    if (groupProc) groupProc.style.display = (!isPipeline && !isKafkaPull && m) ? '' : 'none';
+  }
+  const sinkSec = document.getElementById('sec-sink');
+  if (isPipeline || isQuery) { sinkSec.style.display = 'none'; }
+  else {
+    sinkSec.style.display = '';
+    const sinkJdbcRow = document.getElementById('sink-jdbc-row');
+    const strategyRow = document.getElementById('sink-strategy-row');
+    const keyRow = document.getElementById('sink-key-row');
+    const fileOpts = document.getElementById('sink-file-opts');
+    const kafkaOpts = document.getElementById('sink-kafka-opts');
+    if (isExport) { sinkJdbcRow.style.display='none'; strategyRow.style.display='none'; keyRow.style.display='none'; fileOpts.style.display=''; kafkaOpts.style.display='none'; }
+    else if (isKafkaPush) { sinkJdbcRow.style.display='none'; strategyRow.style.display='none'; keyRow.style.display='none'; fileOpts.style.display='none'; kafkaOpts.style.display=''; }
+    else { sinkJdbcRow.style.display=''; strategyRow.style.display=''; keyRow.style.display=''; fileOpts.style.display='none'; kafkaOpts.style.display='none'; }
+  }
+  const pipeSec = document.getElementById('sec-pipeline');
+  if (isPipeline) pipeSec.classList.remove('hidden-section'); else pipeSec.classList.add('hidden-section');
+  document.querySelectorAll('.pipe-only').forEach(el => el.style.display = isPipeline ? '' : 'none');
+  document.querySelectorAll('.nonpipe-only').forEach(el => el.style.display = (!isPipeline && m) ? '' : 'none');
+  updateState();
+}
+
+function addDatabase() {
+  const nameInput = document.getElementById('new-db-name');
+  const name = nameInput.value.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+  if (!name) return;
+  if (state.databases.find(d => d.name === name)) { showToast('Connection "' + name + '" already exists'); return; }
+  state.databases.push({ name, dbType:'', url:'', username:'', password:'', poolSize:'' });
+  nameInput.value = '';
+  renderDatabases();
+  updateState();
+}
+
+function removeDatabase(idx) { state.databases.splice(idx, 1); renderDatabases(); updateState(); }
+function updateDbField(idx, field, value) { state.databases[idx][field] = value; updateState(); }
+
+function renderDatabases() {
+  const container = document.getElementById('db-connections');
+  container.innerHTML = '';
+  state.databases.forEach((db, idx) => {
+    const card = document.createElement('div');
+    card.className = 'step-card';
+    card.innerHTML = `<div class="step-card-header"><span class="step-type" style="background:var(--accent)">${esc(db.name)}</span><span class="spacer"></span><button class="btn-icon" onclick="removeDatabase(${idx})" title="Remove">&#10005;</button></div><div class="step-card-body"><div class="form-row"><label>Type</label><select onchange="updateDbField(${idx},'dbType',this.value)"><option value="">Select...</option><option value="postgresql"${db.dbType==='postgresql'?' selected':''}>PostgreSQL</option><option value="mysql"${db.dbType==='mysql'?' selected':''}>MySQL</option><option value="sqlite"${db.dbType==='sqlite'?' selected':''}>SQLite</option><option value="sqlserver"${db.dbType==='sqlserver'?' selected':''}>SQL Server</option><option value="oracle"${db.dbType==='oracle'?' selected':''}>Oracle</option><option value="neo4j"${db.dbType==='neo4j'?' selected':''}>Neo4j</option><option value="netezza"${db.dbType==='netezza'?' selected':''}>Netezza</option></select></div><div class="form-row"><label>JDBC URL</label><input value="${esc(db.url)}" oninput="updateDbField(${idx},'url',this.value)" placeholder="postgresql://user:pass@host:5432/db"></div><div class="form-row"><label>Username</label><input value="${esc(db.username)}" oninput="updateDbField(${idx},'username',this.value)" placeholder="Optional"></div><div class="form-row"><label>Password</label><input type="password" value="${db.password}" oninput="updateDbField(${idx},'password',this.value)"></div><div class="form-row"><label>Pool Size</label><input type="number" value="${esc(db.poolSize)}" oninput="updateDbField(${idx},'poolSize',this.value)" placeholder="5"></div></div>`;
+    container.appendChild(card);
+  });
+}
+
+function updateSettings() {
+  const s = state.settings;
+  s.partition_by = gv('s-partition-by'); s.partition_by_columns = gv('s-partition-by-cols');
+  s.partition_source_table = gv('s-partition-src-table'); s.partition_source_column = gv('s-partition-src-col');
+  s.max_parallel_partitions = gv('s-max-parallel-parts'); s.reshuffle_strategy = gv('s-reshuffle-strategy');
+  s.default_threads = gv('s-default-threads'); s.max_parallel_steps = gv('s-max-parallel-steps');
+  s.max_parallel = gv('s-max-parallel'); s.memory_threshold_mb = gv('s-memory-threshold'); s.step_timeout = gv('s-step-timeout');
+  s.batch_size = gv('s-np-batch-size'); s.threads_np = gv('s-np-threads'); s.queue_size = gv('s-np-queue-size');
+  s.fetch_size = gv('s-np-fetch-size'); s.partition_key_columns = gv('s-np-partition-key-cols'); s.num_partitions = gv('s-np-num-partitions');
+  s.state_enabled = document.getElementById('s-state-enabled')?.checked || false;
+  s.state_db_path = gv('s-state-db-path'); s.state_log_path = gv('s-state-log-path');
+  s.state_db_type = gv('s-state-db-type'); s.state_flush_interval = gv('s-state-flush-interval');
+  s.resume_run_id = gv('s-resume-run-id'); s.execution_mode = gv('s-execution-mode');
+  s.checkpoint_interval = gv('s-checkpoint-interval'); s.idle_timeout = gv('s-idle-timeout');
+  s.dlq_path = gv('s-dlq-path');
+  s.dlq_auto_reprocess = document.getElementById('s-dlq-auto-reprocess')?.checked || false;
+  s.dlq_retry_cooldown = gv('s-dlq-retry-cooldown');
+  s.recovery_enabled = document.getElementById('s-recovery-enabled')?.checked || false;
+  s.recovery_timeout = gv('s-recovery-timeout'); s.recovery_sweep_interval = gv('s-recovery-sweep-interval');
+  s.retry_strategy = gv('s-retry-strategy'); s.retry_backoff = gv('s-retry-backoff');
+  s.retry_max_attempts = gv('s-retry-max-attempts'); s.retry_initial_wait = gv('s-retry-initial-wait');
+  s.retry_max_wait = gv('s-retry-max-wait');
+  s.circuit_break_threshold = gv('s-circuit-break-threshold'); s.circuit_break_timeout = gv('s-circuit-break-timeout');
+  s.continue_on_error = document.getElementById('s-continue-on-error')?.checked || false;
+  s.error_handler_timeout = gv('s-error-handler-timeout'); s.finalizer_timeout = gv('s-finalizer-timeout');
+  s.transaction_mode = gv('s-transaction-mode');
+  s.max_retry_attempts = gv('s-np-max-retry-attempts'); s.max_allowed_errors = gv('s-np-max-allowed-errors');
+  s.fail_fast_mode = document.getElementById('s-np-fail-fast')?.checked || false;
+  s.progress_log = gv('s-progress-log');
+  s.enable_tps_metrics = document.getElementById('s-enable-tps')?.checked || false;
+  s.dry_run = document.getElementById('s-dry-run')?.checked || false;
+  s.verbose = document.getElementById('s-verbose')?.checked || false;
+  // Group Processing
+  s.group_columns = gv('gp-group-columns'); s.group_values = gv('gp-group-values');
+  s.group_query = gv('gp-group-query'); s.group_query_db = gv('gp-group-query-db');
+  s.group_table = gv('gp-group-table'); s.group_range_start = gv('gp-range-start');
+  s.group_range_end = gv('gp-range-end');
+  s.split_output_by_group = document.getElementById('gp-split-output')?.checked || false;
+  s.enable_group_placeholders = document.getElementById('gp-enable-placeholders')?.checked || false;
+  s.static_update_columns = gv('gp-static-cols'); s.static_update_values = gv('gp-static-vals');
+  renderYAML();
+}
+
+function updateState() {
+  state.source.dbType = document.getElementById('src-dbtype')?.value || null;
+  state.source.jdbcUrl = document.getElementById('src-jdbc')?.value || null;
+  state.source.query = document.getElementById('src-query')?.value || null;
+  state.source.table = document.getElementById('src-table')?.value || null;
+  state.source.fetchSize = document.getElementById('src-fetch')?.value || null;
+  state.kafkaSource.brokers = document.getElementById('ks-brokers')?.value || null;
+  state.kafkaSource.topic = document.getElementById('ks-topic')?.value || null;
+  state.kafkaSource.consumerGroup = document.getElementById('ks-consumer-group')?.value || null;
+  state.fileSource.inputFile = document.getElementById('fs-input-file')?.value || null;
+  state.fileSource.delimiter = document.getElementById('fs-delimiter')?.value || ',';
+  state.fileSource.hasHeader = document.getElementById('fs-has-header')?.value !== 'false';
+  state.sink.dbType = document.getElementById('sink-dbtype')?.value || null;
+  state.sink.jdbcUrl = document.getElementById('sink-jdbc')?.value || null;
+  state.sink.table = document.getElementById('sink-table')?.value || null;
+  state.sink.strategy = document.getElementById('sink-strategy')?.value || 'insert';
+  state.sink.keyColumns = document.getElementById('sink-key')?.value || null;
+  state.sink.batchSize = document.getElementById('sink-batch')?.value || null;
+  state.sink.threads = document.getElementById('sink-threads')?.value || null;
+  state.sink.outputFile = document.getElementById('sink-output-file')?.value || null;
+  state.sink.delimiter = document.getElementById('sink-delimiter')?.value || ',';
+  state.sink.header = document.getElementById('sink-header')?.value !== 'false';
+  state.sink.kafkaTopic = document.getElementById('sink-kafka-topic')?.value || null;
+  state.sink.kafkaBrokers = document.getElementById('sink-kafka-brokers')?.value || null;
+  state.sink.kafkaKey = document.getElementById('sink-kafka-key')?.value || null;
+  validate();
+  renderYAML();
+}
+
+function validate() {
+  const badge = document.getElementById('validation-badge');
+  const m = state.mode;
+  const isPipeline = m === 'pipeline' || m === 'daemon';
+  let issues = 0;
+  if (!m) issues++;
+  if (!isPipeline && !state.source.jdbcUrl && !state.source.table) issues++;
+  if (isPipeline && state.databases.length === 0) issues++;
+  const isQuery = m === 'query'; const isKafkaPush = m === 'kafka-push';
+  const isExport = ['gencsv','genparquet','load2csv','load2parquet'].includes(m);
+  if (!isPipeline && !isQuery && !isKafkaPush && !isExport && !state.sink.jdbcUrl && !state.sink.table) issues++;
+  toggleCheck('check-mode', !!m);
+  toggleCheck('check-source', isPipeline ? state.databases.length > 0 : !!state.source.jdbcUrl || !!state.source.table);
+  toggleCheck('check-sink', isPipeline || isQuery || isKafkaPush || isExport || !!state.sink.jdbcUrl || !!state.sink.table);
+  toggleCheck('check-pipeline', state.pipeline.steps.length === 0 || !state.pipeline.steps.some(s => !s.id));
+  toggleCheck('check-concurrency', true);
+  toggleCheck('check-state', true);
+  toggleCheck('check-retry', true);
+  if (issues > 0) { badge.className = 'badge red'; badge.textContent = issues + ' issue' + (issues>1?'s':''); }
+  else { badge.className = 'badge green'; badge.textContent = 'Ready'; }
+}
+
+function toggleCheck(id, show) { const el = document.getElementById(id); if (el) el.classList.toggle('visible', show); }
+
+function toggleSection(header) {
+  const arrow = header.querySelector('.arrow');
+  const body = header.nextElementSibling;
+  arrow.classList.toggle('collapsed');
+  body.classList.toggle('hidden');
+  localStorage.setItem('collapsed_' + header.closest('.section').id, body.classList.contains('hidden'));
+}
+
+function addStep() {
+  const typeSelect = document.getElementById('new-step-type');
+  const type = typeSelect.value;
+  if (!type) return;
+  stepCounters[type] = (stepCounters[type] || 0) + 1;
+  const step = { id: type.replace(/_/g,'-') + '_' + stepCounters[type], type, depends_on: [], params: {} };
+  const def = STEP_TYPES[type];
+  def.fields.forEach(f => { const [name, ftype] = f.split(':'); step.params[name] = ftype === 'select' ? (f.split(',').slice(1)[0] || '') : ''; });
+  state.pipeline.steps.push(step);
+  renderSteps(); updateState();
+}
+
+function removeStep(index) {
+  const removedId = state.pipeline.steps[index].id;
+  state.pipeline.steps.splice(index, 1);
+  state.pipeline.steps.forEach(s => { s.depends_on = s.depends_on.filter(d => d !== removedId); });
+  renderSteps(); updateState();
+}
+
+function renderSteps() {
+  const container = document.getElementById('steps-container');
+  container.innerHTML = '';
+  state.pipeline.steps.forEach((step, idx) => {
+    const def = STEP_TYPES[step.type];
+    const card = document.createElement('div');
+    card.className = 'step-card'; card.draggable = true; card.dataset.index = idx;
+    card.ondragstart = e => { e.dataTransfer.setData('text/plain', idx); card.style.opacity = '0.5'; };
+    card.ondragend = () => { card.style.opacity = '1'; };
+    card.ondragover = e => { e.preventDefault(); card.style.borderColor = 'var(--accent)'; };
+    card.ondragleave = () => { card.style.borderColor = ''; };
+    card.ondrop = e => { e.preventDefault(); card.style.borderColor = ''; const from = parseInt(e.dataTransfer.getData('text/plain')); if (from !== idx) { const [moved] = state.pipeline.steps.splice(from, 1); state.pipeline.steps.splice(idx, 0, moved); renderSteps(); updateState(); } };
+    const header = document.createElement('div');
+    header.className = 'step-card-header';
+    header.innerHTML = `<span class="drag-handle" title="Drag to reorder">&#9776;</span><span class="step-type">${def.label}</span><input class="step-id-input" value="${esc(step.id)}" onchange="updateStepId(${idx}, this.value)" placeholder="Step ID"><span class="spacer"></span><button class="btn-icon" onclick="toggleStepBody(this)" title="Expand/Collapse">&#9660;</button><button class="btn-icon" onclick="removeStep(${idx})" title="Remove step">&#10005;</button>`;
+    card.appendChild(header);
+    const body = document.createElement('div');
+    body.className = 'step-card-body';
+    const dbFields = def.fields.filter(f => f.startsWith('database:') || f.startsWith('left_database:') || f.startsWith('right_database:') || f.startsWith('source_db:') || f.startsWith('target_db:') || f.startsWith('datasource:'));
+    if (dbFields.length > 0 && state.databases.length > 0) {
+      dbFields.forEach(f => { const [name] = f.split(':'); const row = document.createElement('div'); row.className = 'form-row'; const label = name.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); const opts = state.databases.map(d=>`<option value="${d.name}"${step.params[name]===d.name?' selected':''}>${d.name} (${d.dbType||'?'})</option>`).join(''); row.innerHTML = `<label>${label}</label><select onchange="updateStepParam(${idx},'${name}',this.value)"><option value="">Select database...</option>${opts}</select>`; body.appendChild(row); });
+    }
+    const otherIds = state.pipeline.steps.filter((_,i)=>i!==idx).map(s=>s.id);
+    if (otherIds.length > 0) { const depDiv = document.createElement('div'); depDiv.className = 'form-row'; depDiv.innerHTML = `<label>Depends On</label><div><select onchange="addDependsOn(${idx}, this.value); this.value=''"><option value="">Add dependency...</option>${otherIds.map(id=>`<option value="${id}">${id}</option>`).join('')}</select><div class="depends-tags">${step.depends_on.map(d=>`<span class="depends-tag">${d} <span class="remove" onclick="removeDependsOn(${idx},'${d}')">&times;</span></span>`).join('')}</div></div>`; body.appendChild(depDiv); }
+    const dbFieldNames = new Set(dbFields.map(f=>f.split(':')[0]));
+    def.fields.forEach(f => { const [name,ftype] = f.split(':'); if (dbFieldNames.has(name)) return; const row = document.createElement('div'); row.className = 'form-row'; const label = name.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); let input; if (ftype==='textarea') input=`<textarea oninput="updateStepParam(${idx},'${name}',this.value)" placeholder="${label}">${esc(step.params[name]||'')}</textarea>`; else if (ftype==='select') { const options=f.split(',').slice(1); input=`<select onchange="updateStepParam(${idx},'${name}',this.value)">${options.map(o=>`<option value="${o}"${step.params[name]===o?' selected':''}>${o}</option>`).join('')}</select>`; } else if (ftype==='number') input=`<input type="number" value="${esc(step.params[name]||'')}" oninput="updateStepParam(${idx},'${name}',this.value)" placeholder="${label}">`; else input=`<input value="${esc(step.params[name]||'')}" oninput="updateStepParam(${idx},'${name}',this.value)" placeholder="${label}">`; row.innerHTML = `<label>${label}</label>${input}`; body.appendChild(row); });
+    card.appendChild(body);
+    container.appendChild(card);
+  });
+}
+
+function toggleStepBody(btn) { const body = btn.closest('.step-card').querySelector('.step-card-body'); body.classList.toggle('hidden'); btn.textContent = body.classList.contains('hidden') ? '▶' : '▼'; }
+function updateStepId(idx, value) { const oldId = state.pipeline.steps[idx].id; state.pipeline.steps[idx].id = value; state.pipeline.steps.forEach(s => { s.depends_on = s.depends_on.map(d => d === oldId ? value : d); }); renderSteps(); updateState(); }
+function updateStepParam(idx, name, value) { state.pipeline.steps[idx].params[name] = value; updateState(); }
+function addDependsOn(idx, depId) { if (!depId) return; const step = state.pipeline.steps[idx]; if (!step.depends_on.includes(depId)) { step.depends_on.push(depId); renderSteps(); updateState(); } }
+function removeDependsOn(idx, depId) { state.pipeline.steps[idx].depends_on = state.pipeline.steps[idx].depends_on.filter(d => d !== depId); renderSteps(); updateState(); }
+
+function generateYAML() {
+  const lines = [];
+  const m = state.mode;
+  if (!m) return '# Select an operation mode to begin';
+  const isPipeline = m === 'pipeline' || m === 'daemon';
+  const isExport = ['gencsv','genparquet','load2csv','load2parquet'].includes(m);
+  const isKafkaPush = m === 'kafka-push';
+  const isKafkaPull = m === 'kafka-pull';
+  const isQuery = m === 'query';
+  const isImportInd = ['insert-ind','update-ind','merge-ind','upsert-ind'].includes(m);
+  if (isPipeline) {
+    lines.push('name: my_pipeline'); lines.push('');
+    if (state.databases.length > 0) { lines.push('databases:'); state.databases.forEach(db => { lines.push(`  ${db.name}:`); if (db.dbType) lines.push(`    type: ${db.dbType}`); if (db.url) lines.push(`    url: "${db.url}"`); if (db.username) lines.push(`    username: ${db.username}`); if (db.password) lines.push(`    password: \${${db.name.toUpperCase()}_PASSWORD}`); if (db.poolSize) lines.push(`    pool_size: ${db.poolSize}`); }); lines.push(''); }
+    const s = state.settings;
+    const sl = [];
+    if (s.default_threads) sl.push(`  default_threads: ${s.default_threads}`);
+    if (s.max_parallel_steps) sl.push(`  max_parallel_steps: ${s.max_parallel_steps}`);
+    if (s.max_parallel) sl.push(`  max_parallel: ${s.max_parallel}`);
+    if (s.memory_threshold_mb) sl.push(`  memory_threshold_mb: ${s.memory_threshold_mb}`);
+    if (s.step_timeout) sl.push(`  step_timeout: ${s.step_timeout}`);
+    if (s.partition_by) sl.push(`  partition_by: ${s.partition_by}`);
+    if (s.partition_by_columns) sl.push(`  partition_by_columns: [${s.partition_by_columns.split(',').map(c=>'"'+c.trim()+'"').join(', ')}]`);
+    if (s.partition_source_table) sl.push(`  partition_source_table: ${s.partition_source_table}`);
+    if (s.partition_source_column) sl.push(`  partition_source_column: ${s.partition_source_column}`);
+    if (s.max_parallel_partitions) sl.push(`  max_parallel_partitions: ${s.max_parallel_partitions}`);
+    if (s.reshuffle_strategy && s.reshuffle_strategy !== 'barrier') sl.push(`  reshuffle_strategy: ${s.reshuffle_strategy}`);
+    if (s.retry_strategy) sl.push(`  retry_strategy: ${s.retry_strategy}`);
+    if (s.retry_backoff) sl.push(`  retry_backoff: ${s.retry_backoff}`);
+    if (s.retry_max_attempts) sl.push(`  retry_max_attempts: ${s.retry_max_attempts}`);
+    if (s.retry_initial_wait) sl.push(`  retry_initial_wait: ${s.retry_initial_wait}`);
+    if (s.retry_max_wait) sl.push(`  retry_max_wait: ${s.retry_max_wait}`);
+    if (s.retry_on.length > 0) sl.push(`  retry_on: [${s.retry_on.map(v=>'"'+v+'"').join(', ')}]`);
+    if (s.circuit_break_threshold) sl.push(`  circuit_break_threshold: ${s.circuit_break_threshold}`);
+    if (s.circuit_break_timeout) sl.push(`  circuit_break_timeout: ${s.circuit_break_timeout}`);
+    if (s.continue_on_error) sl.push('  continue_on_error: true');
+    if (s.error_handler_timeout) sl.push(`  error_handler_timeout: ${s.error_handler_timeout}`);
+    if (s.finalizer_timeout) sl.push(`  finalizer_timeout: ${s.finalizer_timeout}`);
+    if (s.transaction_mode) sl.push(`  transaction_mode: ${s.transaction_mode}`);
+    if (s.state_db_path) sl.push(`  state_db_path: ${s.state_db_path}`);
+    if (s.state_log_path) sl.push(`  state_log_path: ${s.state_log_path}`);
+    if (s.state_db_type && s.state_db_type !== 'sqlite') sl.push(`  state_db_type: ${s.state_db_type}`);
+    if (s.state_flush_interval) sl.push(`  state_flush_interval: ${s.state_flush_interval}`);
+    if (s.resume_run_id) sl.push(`  resume_run_id: ${s.resume_run_id}`);
+    if (s.execution_mode && s.execution_mode !== 'batch') sl.push(`  execution_mode: ${s.execution_mode}`);
+    if (s.checkpoint_interval) sl.push(`  checkpoint_interval: ${s.checkpoint_interval}`);
+    if (s.idle_timeout) sl.push(`  idle_timeout: ${s.idle_timeout}`);
+    if (s.dlq_path) sl.push(`  dlq_path: ${s.dlq_path}`);
+    if (s.dlq_auto_reprocess) sl.push('  dlq_auto_reprocess: true');
+    if (s.dlq_retry_cooldown) sl.push(`  dlq_retry_cooldown: ${s.dlq_retry_cooldown}`);
+    if (s.recovery_enabled) sl.push('  recovery_enabled: true');
+    if (s.recovery_timeout) sl.push(`  recovery_timeout: ${s.recovery_timeout}`);
+    if (s.recovery_sweep_interval) sl.push(`  recovery_sweep_interval: ${s.recovery_sweep_interval}`);
+    if (sl.length > 0) { lines.push('settings:'); sl.forEach(l => lines.push(l)); lines.push(''); }
+    if (state.pipeline.steps.length > 0) { lines.push('steps:'); state.pipeline.steps.forEach(step => { lines.push(`  - id: ${step.id}`); lines.push(`    type: ${step.type}`); if (step.depends_on.length > 0) lines.push(`    depends_on: [${step.depends_on.map(d=>'"'+d+'"').join(', ')}]`); const def = STEP_TYPES[step.type]; def.fields.forEach(f => { const [name,ftype] = f.split(':'); const val = step.params[name]; if (!val) return; writeYAMLValue(lines, name, val, ftype, '    '); }); }); lines.push(''); }
+  } else {
+    const s = state.settings;
+    lines.push(`mode: ${m}`); lines.push('');
+    const src = state.source;
+    const needsSource = !isImportInd && !isKafkaPull;
+    if (needsSource && (src.jdbcUrl || src.query || src.table)) { lines.push('source:'); if (src.jdbcUrl) lines.push(`  jdbc-url: "${src.jdbcUrl}"`); if (src.dbType) lines.push(`  db-type: ${src.dbType}`); if (src.query) { lines.push('  query: |'); src.query.split('\n').forEach(l => lines.push('    ' + l)); } else if (src.table) lines.push(`  table: ${src.table}`); if (src.fetchSize) lines.push(`  fetch-size: ${src.fetchSize}`); lines.push(''); }
+    if (isImportInd) { const fs = state.fileSource; if (fs.inputFile) lines.push(`input-file: "${fs.inputFile}"`); else lines.push('# input-file: "./data.csv"'); if (fs.delimiter !== ',') lines.push(`delimiter: "${fs.delimiter}"`); if (!fs.hasHeader) lines.push('has-header: false'); lines.push(''); }
+    if (isKafkaPull) { const ks = state.kafkaSource; lines.push('kafka:'); lines.push(`  brokers: ${ks.brokers || 'localhost:9092'}`); lines.push(`  topic: ${ks.topic || 'my-topic'}`); lines.push(`  consumer-group: ${ks.consumerGroup || 'my-group'}`); lines.push(''); }
+    const snk = state.sink;
+    if (isQuery) { if (src.jdbcUrl) { lines.push('target:'); lines.push(`  jdbc-url: "${src.jdbcUrl}"`); if (src.dbType) lines.push(`  db-type: ${src.dbType}`); lines.push(''); } }
+    else if (isExport) { lines.push('target:'); lines.push(`  output-file: "${snk.outputFile || './output.csv'}"`); if (snk.delimiter !== ',') lines.push(`  delimiter: "${snk.delimiter}"`); if (!snk.header) lines.push('  has-header: false'); lines.push(''); lines.push('performance:'); if (snk.batchSize || s.batch_size) lines.push(`  batch-size: ${snk.batchSize || s.batch_size}`); if (snk.threads || s.threads_np) lines.push(`  threads: ${snk.threads || s.threads_np}`); if (s.queue_size) lines.push(`  queue-size: ${s.queue_size}`); if (s.num_partitions) lines.push(`  num-partitions: ${s.num_partitions}`); lines.push(''); }
+    else if (isKafkaPush) { lines.push('kafka:'); if (snk.kafkaBrokers) lines.push(`  brokers: ${snk.kafkaBrokers}`); if (snk.kafkaTopic) lines.push(`  topic: ${snk.kafkaTopic}`); if (snk.kafkaKey) lines.push(`  key-column: ${snk.kafkaKey}`); lines.push(''); }
+    else { lines.push('target:'); if (snk.jdbcUrl) lines.push(`  jdbc-url: "${snk.jdbcUrl}"`); if (snk.dbType) lines.push(`  db-type: ${snk.dbType}`); if (snk.table) lines.push(`  table: ${snk.table}`); lines.push(''); lines.push('performance:'); lines.push(`  strategy: ${snk.strategy}`); if (snk.keyColumns && ['merge','upsert'].includes(snk.strategy)) lines.push(`  key-columns: [${snk.keyColumns.split(',').map(c=>'"'+c.trim()+'"').join(', ')}]`); if (snk.batchSize || s.batch_size) lines.push(`  batch-size: ${snk.batchSize || s.batch_size}`); if (snk.threads || s.threads_np) lines.push(`  threads: ${snk.threads || s.threads_np}`); if (src.fetchSize || s.fetch_size) lines.push(`  fetch-size: ${src.fetchSize || s.fetch_size}`); if (s.queue_size) lines.push(`  queue-size: ${s.queue_size}`); if (s.partition_key_columns) lines.push(`  partition-key-columns: [${s.partition_key_columns.split(',').map(c=>'"'+c.trim()+'"').join(', ')}]`); if (s.num_partitions) lines.push(`  num-partitions: ${s.num_partitions}`);
+    if (s.group_columns) { lines.push(`  group-columns: ${s.group_columns}`); if (s.group_values) lines.push(`  group-values: ${s.group_values}`); if (s.group_table) lines.push(`  group-table: ${s.group_table}`); if (s.group_range_start) lines.push(`  group-range-start: ${s.group_range_start}`); if (s.group_range_end) lines.push(`  group-range-end: ${s.group_range_end}`); if (s.split_output_by_group) lines.push('  split-output-by-group: true'); if (s.enable_group_placeholders) lines.push('  enable-group-placeholders: true'); if (s.static_update_columns) { lines.push(`  static-update-columns: ${s.static_update_columns}`); lines.push(`  static-update-values: ${s.static_update_values}`); } }
+    lines.push(''); }
+    const stateLines = [];
+    if (s.state_enabled) stateLines.push('  enable-state-management: true');
+    if (s.state_db_path) stateLines.push(`  state-db-path: ${s.state_db_path}`);
+    if (stateLines.length > 0) { lines.push('state:'); stateLines.forEach(l => lines.push(l)); lines.push(''); }
+    const retryLines = [];
+    if (s.max_retry_attempts) retryLines.push(`  max-retry-attempts: ${s.max_retry_attempts}`);
+    if (s.max_allowed_errors) retryLines.push(`  max-allowed-errors: ${s.max_allowed_errors}`);
+    if (s.fail_fast_mode) retryLines.push('  fail-fast-mode: true');
+    if (retryLines.length > 0) { lines.push('retry:'); retryLines.forEach(l => lines.push(l)); lines.push(''); }
+    if (s.dlq_path) { lines.push(`dlq-path: ${s.dlq_path}`); lines.push(''); }
+    const logLines = [];
+    if (s.progress_log) logLines.push(`  progress-log: ${s.progress_log}`);
+    if (s.enable_tps_metrics) logLines.push('  enable-tps-metrics: true');
+    if (s.dry_run) logLines.push('  dry-run: true');
+    if (s.verbose) logLines.push('  verbose: true');
+    if (logLines.length > 0) { lines.push('logging:'); logLines.forEach(l => lines.push(l)); lines.push(''); }
+  }
+  return lines.join('\n');
+}
+
+function writeYAMLValue(lines, name, val, ftype, indent) {
+  if (ftype === 'textarea') { lines.push(`${indent}${name}: |`); val.split('\n').forEach(l => lines.push(`${indent}  ${l}`)); }
+  else if (LIST_FIELDS.has(name)) lines.push(`${indent}${name}: [${val.split(',').map(c=>'"'+c.trim()+'"').join(', ')}]`);
+  else if (ftype === 'number') lines.push(`${indent}${name}: ${val}`);
+  else lines.push(`${indent}${name}: "${val}"`);
+}
+
+function renderYAML() {
+  const yaml = generateYAML();
+  const pre = document.getElementById('yaml-preview');
+  pre.innerHTML = '';
+  yaml.split('\n').forEach(line => {
+    const span = document.createElement('span');
+    span.className = 'line';
+    let hl = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/(#.*$)/, '<span class="yaml-cmt">$1</span>')
+      .replace(/^(\s*[\w_-]+)(:)/gm, '<span class="yaml-key">$1</span>$2')
+      .replace(/"([^"]*)"/g, '<span class="yaml-str">"$1"</span>')
+      .replace(/\b(true|false|null)\b/g, '<span class="yaml-kw">$1</span>');
+    span.innerHTML = hl || '&nbsp;';
+    pre.appendChild(span);
+  });
+}
+
+function downloadYAML() { download('mass-migrator-config.yaml', generateYAML(), 'text/yaml'); }
+function downloadJSON() { download('mass-migrator-config.json', JSON.stringify({config_yaml: generateYAML()}, null, 2), 'application/json'); }
+function download(filename, content, type) { const blob = new Blob([content], {type}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); showToast('Downloaded ' + filename); }
+function copyYAML() { navigator.clipboard.writeText(generateYAML()).then(() => showToast('Copied to clipboard!')); }
+function showToast(msg) { const toast = document.getElementById('toast'); toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2000); }
+</script>
+</body>
+</html>
